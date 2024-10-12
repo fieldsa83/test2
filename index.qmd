@@ -1,0 +1,116 @@
+---
+title: "NASDAQ Weekly Performance"
+format:
+  html:
+    self-contained: true
+---
+
+::: {style="font-size: 14pt;font-weight: bold;margin-bottom: 10px; margin-top: 20px"}
+Chart - NASDAQ Weekly % Change Relative to Start of Year
+:::
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Load necessary libraries
+library(quantmod)
+library(dplyr)
+library(lubridate)
+library(plotly)
+
+# Function to calculate weekly returns indexed to start of year
+calculate_weekly_returns <- function(symbol, start_date, end_date) {
+  data <- getSymbols(symbol, from = start_date, to = end_date, src = "yahoo", auto.assign = FALSE)
+  prices <- Ad(data)
+  
+  df <- data.frame(date = index(prices), price = as.numeric(prices))
+  df <- df %>%
+    mutate(year = year(date),
+           week = week(date)) %>%
+    group_by(year, week) %>%
+    summarise(date = last(date), price = last(price), .groups = 'drop') %>%
+    arrange(date)
+  
+  df <- df %>%
+    group_by(year) %>%
+    mutate(pct_change = (price / first(price) - 1) * 100) %>%
+    filter(week <= 52) %>%
+    ungroup()
+  
+  return(df)
+}
+
+# Set date range
+end_date <- Sys.Date()
+start_date <- as.Date("2008-01-01")
+start_year <- as.integer(format(start_date, "%Y"))
+
+# Calculate weekly returns for NASDAQ
+nasdaq_returns <- calculate_weekly_returns("^IXIC", start_date, end_date)
+
+# Split data into dataframes
+df_historical <- nasdaq_returns %>% filter(year >= start_year & year <= 2023)
+df_2024 <- nasdaq_returns %>% filter(year == 2024)
+df_avg_historical <- df_historical %>%
+  group_by(week) %>%
+  summarise(avg_pct_change = mean(pct_change, na.rm = TRUE))
+
+# Create the plot
+p <- plot_ly()
+
+# Add traces for historical data
+p <- add_trace(p, x = ~week, y = ~pct_change, data = df_historical,
+               type = 'scatter', mode = 'lines', split = ~year,
+               line = list(color = 'grey', width = 1),
+               opacity = 0.3,
+               hoverinfo = "text",
+               text = ~paste("Year:", year, "<br>Week:", week, "<br>Change:", round(pct_change, 2), "%"),
+               showlegend = FALSE)
+
+# Add a custom trace for the historical legend entry
+p <- add_trace(p, x = c(1), y = c(NA), type = 'scatter', mode = 'lines',
+               line = list(color = 'grey', width = 1),
+               opacity = 0.3,
+               name = 'Years 2020 to 2023',
+               hoverinfo = 'none')
+
+# Add trace for 2024
+if(nrow(df_2024) > 0) {
+  p <- add_trace(p, x = ~week, y = ~pct_change, data = df_2024,
+                 type = 'scatter', mode = 'lines',
+                 line = list(color = '#336699', width = 2),
+                 name = '2024',
+                 hoverinfo = "text",
+                 text = ~paste("Year: 2024<br>Week:", week, "<br>Change:", round(pct_change, 2), "%"))
+}
+
+# Add trace for average of historical data
+p <- add_trace(p, x = ~week, y = ~avg_pct_change, data = df_avg_historical,
+               type = 'scatter', mode = 'lines',
+               opacity = 1,
+               line = list(color = 'darkred', width = 2, dash = 'dot'),
+               name = paste0("Average (",start_year,"-2023)"),
+               hoverinfo = "text",
+               text = ~paste0("Year: Average (",start_year,"-2023)<br>Week:", week, "<br>Change:", round(avg_pct_change, 2), "%"))
+
+
+# Update layout
+# Update layout
+p <- p %>% layout(
+  xaxis = list(
+    title = "Week", 
+    range = c(1, 52),
+    showgrid = FALSE,  # This removes vertical gridlines
+    tickmode = "array",
+  tickvals = c(1, 10, 20, 30, 40, 50),
+  ticktext = c("1", "10", "20", "30", "40", "50")
+  ),
+  yaxis = list(title = "% Change"),
+  showlegend = TRUE,
+  legend = list(orientation = "h", y = 1.1)
+)
+# Display the plot
+p
+```
