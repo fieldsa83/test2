@@ -1,8 +1,9 @@
 project:
   type: website
+  output-dir: _site
 
 website:
-  title: "NASDAQ Weekly Analysis "
+  title: "NASDAQ Weekly Analysis"
   navbar:
     left:
       - href: index.qmd
