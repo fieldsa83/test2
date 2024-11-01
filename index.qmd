@@ -95,7 +95,6 @@ p <- add_trace(p, x = ~week, y = ~avg_pct_change, data = df_avg_historical,
                hoverinfo = "text",
                text = ~paste0("Year: Average (",start_year,"-2023)<br>Week:", week, "<br>Change:", round(avg_pct_change, 2), "%"))
 
-
 # Update layout
 # Update layout
 p <- p %>% layout(
