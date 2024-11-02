@@ -109,6 +109,9 @@ p <- p %>% layout(
   yaxis = list(title = "% Change"),
   showlegend = TRUE,
   legend = list(orientation = "h", y = 1.1)
+) %>%
+config(
+  displayModeBar = FALSE
 )
 # Display the plot
 p
