@@ -1,15 +1,4 @@
-project:
-  type: website
-  output-dir: _site
-
-website:
-  title: "NASDAQ Weekly Analysis"
-  navbar:
-    left:
-      - href: index.qmd
-        text: Home
-
+title: "NASDAQ Weekly Performance"
 format:
   html:
-    css: styles.css
-    toc: FALSE
+    self-contained: true
