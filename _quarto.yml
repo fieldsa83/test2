@@ -1,8 +1,7 @@
 project:
   type: website
   output-dir: _site
-  
-title: "NASDAQ Weekly Performance"
+
 format:
   html:
     self-contained: true
