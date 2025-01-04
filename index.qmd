@@ -39,7 +39,7 @@ calculate_weekly_returns <- function(symbol, start_date, end_date) {
 
 # Set date range
 end_date <- Sys.Date()
-start_date <- as.Date("2008-01-01")
+start_date <- as.Date("2023-01-01")
 start_year <- as.integer(format(start_date, "%Y"))
 
 # Calculate weekly returns for NASDAQ
