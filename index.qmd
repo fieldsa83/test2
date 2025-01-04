@@ -39,7 +39,7 @@ calculate_weekly_returns <- function(symbol, start_date, end_date) {
 
 # Set date range
 end_date <- Sys.Date()
-start_date <- as.Date("2023-01-01")
+start_date <- as.Date("2008-01-01")
 start_year <- as.integer(format(start_date, "%Y"))
 
 # Calculate weekly returns for NASDAQ
@@ -68,7 +68,7 @@ p <- add_trace(p, x = ~week, y = ~pct_change, data = df_historical,
 p <- add_trace(p, x = c(1), y = c(NA), type = 'scatter', mode = 'lines',
                line = list(color = 'grey', width = 1),
                opacity = 0.3,
-               name = 'Years 2020 to 2024',
+               name = '',
                hoverinfo = 'none')
 
 # Add trace for 2025
