@@ -71,14 +71,14 @@ p <- add_trace(p, x = c(1), y = c(NA), type = 'scatter', mode = 'lines',
                name = 'Years 2020 to 2023',
                hoverinfo = 'none')
 
-# Add trace for 2024
-if(nrow(df_2024) > 0) {
-  p <- add_trace(p, x = ~week, y = ~pct_change, data = df_2024,
+# Add trace for 2025
+if(nrow(df_2025) > 0) {
+  p <- add_trace(p, x = ~week, y = ~pct_change, data = df_2025,
                  type = 'scatter', mode = 'lines',
                  line = list(color = '#336699', width = 2),
-                 name = '2024',
+                 name = '2025',
                  hoverinfo = "text",
-                 text = ~paste("Year: 2024<br>Week:", week, "<br>Change:", round(pct_change, 2), "%"))
+                 text = ~paste("Year: 2025<br>Week:", week, "<br>Change:", round(pct_change, 2), "%"))
 }
 
 # Add trace for average of historical data
@@ -86,9 +86,9 @@ p <- add_trace(p, x = ~week, y = ~avg_pct_change, data = df_avg_historical,
                type = 'scatter', mode = 'lines',
                opacity = 1,
                line = list(color = 'darkred', width = 2, dash = 'dot'),
-               name = paste0("Average (",start_year,"-2023)"),
+               name = paste0("Average (",start_year,"-2024)"),
                hoverinfo = "text",
-               text = ~paste0("Year: Average (",start_year,"-2023)<br>Week:", week, "<br>Change:", round(avg_pct_change, 2), "%"))
+               text = ~paste0("Year: Average (",start_year,"-2024)<br>Week:", week, "<br>Change:", round(avg_pct_change, 2), "%"))
 
 # Update layout
 # Update layout
