@@ -47,7 +47,7 @@ nasdaq_returns <- calculate_weekly_returns("^IXIC", start_date, end_date)
 
 # Split data into dataframes
 df_historical <- nasdaq_returns %>% filter(year >= start_year & year <= 2024)
-df_2024 <- nasdaq_returns %>% filter(year == 2024)
+df_2025 <- nasdaq_returns %>% filter(year == 2025)
 df_avg_historical <- df_historical %>%
   group_by(week) %>%
   summarise(avg_pct_change = mean(pct_change, na.rm = TRUE))
