@@ -46,7 +46,7 @@ start_year <- as.integer(format(start_date, "%Y"))
 nasdaq_returns <- calculate_weekly_returns("^IXIC", start_date, end_date)
 
 # Split data into dataframes
-df_historical <- nasdaq_returns %>% filter(year >= start_year & year <= 2023)
+df_historical <- nasdaq_returns %>% filter(year >= start_year & year <= 2024)
 df_2024 <- nasdaq_returns %>% filter(year == 2024)
 df_avg_historical <- df_historical %>%
   group_by(week) %>%
@@ -68,7 +68,7 @@ p <- add_trace(p, x = ~week, y = ~pct_change, data = df_historical,
 p <- add_trace(p, x = c(1), y = c(NA), type = 'scatter', mode = 'lines',
                line = list(color = 'grey', width = 1),
                opacity = 0.3,
-               name = 'Years 2020 to 2023',
+               name = 'Years 2020 to 2024',
                hoverinfo = 'none')
 
 # Add trace for 2025
