@@ -4447,21 +4447,25 @@ vertical-align: -.125em;
 
 
 
-<section id="load-necessary-libraries" class="level1">
-<h1>Load necessary libraries</h1>
-<p>library(quantmod) library(dplyr) library(lubridate) library(plotly)</p>
+<p>#| echo: false #| warning: false #| message: false # Load necessary libraries library(quantmod) library(dplyr) library(lubridate) library(plotly)</p>
+<section id="function-to-calculate-weekly-returns-indexed-to-start-of-year" class="level1">
+<h1>Function to calculate weekly returns indexed to start of year</h1>
+<p>calculate_weekly_returns &lt;- function(symbol, start_date, end_date) { data &lt;- getSymbols(symbol, from = start_date, to = end_date, src = “yahoo”, auto.assign = FALSE) prices &lt;- Ad(data)</p>
+<p>df &lt;- data.frame(date = index(prices), price = as.numeric(prices)) df &lt;- df %&gt;% mutate(year = year(date), week = week(date)) %&gt;% group_by(year, week) %&gt;% summarise(date = last(date), price = last(price), .groups = ‘drop’) %&gt;% arrange(date)</p>
+<p>df &lt;- df %&gt;% group_by(year) %&gt;% mutate(pct_change = (price / first(price) - 1) * 100) %&gt;% filter(week &lt;= 52) %&gt;% ungroup()</p>
+<p>return(df) }</p>
 </section>
-<section id="calculate-data-as-before" class="level1">
-<h1>Calculate data as before…</h1>
+<section id="set-date-range" class="level1">
+<h1>Set date range</h1>
+<p>end_date &lt;- Sys.Date() start_date &lt;- as.Date(“2008-01-01”) start_year &lt;- as.integer(format(start_date, “%Y”))</p>
 </section>
-<section id="first-ensure-both-dataframes-exist-and-have-the-right-structure" class="level1">
-<h1>First, ensure both dataframes exist and have the right structure</h1>
+<section id="calculate-weekly-returns-for-nasdaq---make-sure-this-is-executed" class="level1">
+<h1>Calculate weekly returns for NASDAQ - MAKE SURE THIS IS EXECUTED</h1>
+<p>nasdaq_returns &lt;- calculate_weekly_returns(“^IXIC”, start_date, end_date)</p>
+</section>
+<section id="split-data-into-dataframes" class="level1">
+<h1>Split data into dataframes</h1>
 <p>df_historical &lt;- nasdaq_returns %&gt;% filter(year &gt;= start_year &amp; year &lt;= 2024) df_2025 &lt;- nasdaq_returns %&gt;% filter(year == 2025) df_avg_historical &lt;- df_historical %&gt;% group_by(week) %&gt;% summarise(avg_pct_change = mean(pct_change, na.rm = TRUE))</p>
-</section>
-<section id="only-apply-highlight_key-to-dataframes-that-exist-and-have-rows" class="level1">
-<h1>Only apply highlight_key to dataframes that exist and have rows</h1>
-<p>if(nrow(df_historical) &gt; 0) { df_historical &lt;- df_historical %&gt;% mutate(id = as.character(year)) %&gt;% highlight_key(~id) }</p>
-<p>if(nrow(df_avg_historical) &gt; 0) { df_avg_historical &lt;- df_avg_historical %&gt;% mutate(id = “average”) %&gt;% highlight_key(~id) }</p>
 </section>
 <section id="create-the-plot" class="level1">
 <h1>Create the plot</h1>
@@ -4469,27 +4473,26 @@ vertical-align: -.125em;
 </section>
 <section id="add-traces-for-historical-data" class="level1">
 <h1>Add traces for historical data</h1>
-<p>if(nrow(df_historical) &gt; 0) { p &lt;- add_trace(p, x = ~week, y = ~pct_change, data = df_historical, type = ‘scatter’, mode = ‘lines’, split = ~year, line = list(color = ‘grey’, width = 1), opacity = 0.3, hoverinfo = “text”, text = ~paste(“Year:”, year, “<br>Week:”, week, “<br>Change:”, round(pct_change, 2), “%”), showlegend = FALSE) }</p>
+<p>p &lt;- add_trace(p, x = ~week, y = ~pct_change, data = df_historical, type = ‘scatter’, mode = ‘lines’, split = ~year, line = list(color = ‘grey’, width = 1), opacity = 0.3, hoverinfo = “text”, text = ~paste(“Year:”, year, “<br>Week:”, week, “<br>Change:”, round(pct_change, 2), “%”), showlegend = FALSE)</p>
 </section>
 <section id="add-a-custom-trace-for-the-historical-legend-entry" class="level1">
 <h1>Add a custom trace for the historical legend entry</h1>
 <p>p &lt;- add_trace(p, x = c(1), y = c(NA), type = ‘scatter’, mode = ‘lines’, line = list(color = ‘grey’, width = 1), opacity = 0.3, name = ’‘, hoverinfo = ’none’)</p>
 </section>
-<section id="add-trace-for-2025-only-if-data-exists" class="level1">
-<h1>Add trace for 2025 (only if data exists)</h1>
-<p>if(nrow(df_2025) &gt; 0) { # Apply highlight_key only if we have data df_2025 &lt;- df_2025 %&gt;% mutate(id = “2025”) %&gt;% highlight_key(~id)</p>
-<p>p &lt;- add_trace(p, x = ~week, y = ~pct_change, data = df_2025, type = ‘scatter’, mode = ‘lines’, line = list(color = ‘#336699’, width = 2), name = ‘2025’, hoverinfo = “text”, text = ~paste(“Year: 2025<br>Week:”, week, “<br>Change:”, round(pct_change, 2), “%”)) }</p>
+<section id="add-trace-for-2025" class="level1">
+<h1>Add trace for 2025</h1>
+<p>if(nrow(df_2025) &gt; 0) { p &lt;- add_trace(p, x = ~week, y = ~pct_change, data = df_2025, type = ‘scatter’, mode = ‘lines’, line = list(color = ‘#336699’, width = 2), name = ‘2025’, hoverinfo = “text”, text = ~paste(“Year: 2025<br>Week:”, week, “<br>Change:”, round(pct_change, 2), “%”)) }</p>
 </section>
 <section id="add-trace-for-average-of-historical-data" class="level1">
 <h1>Add trace for average of historical data</h1>
-<p>if(nrow(df_avg_historical) &gt; 0) { p &lt;- add_trace(p, x = ~week, y = ~avg_pct_change, data = df_avg_historical, type = ‘scatter’, mode = ‘lines’, opacity = 1, line = list(color = ‘darkred’, width = 2, dash = ‘dot’), name = paste0(“Average (”,start_year,“-2024)”), hoverinfo = “text”, text = ~paste0(“Year: Average (”,start_year,“-2024)<br>Week:”, week, “<br>Change:”, round(avg_pct_change, 2), “%”)) }</p>
+<p>p &lt;- add_trace(p, x = ~week, y = ~avg_pct_change, data = df_avg_historical, type = ‘scatter’, mode = ‘lines’, opacity = 1, line = list(color = ‘darkred’, width = 2, dash = ‘dot’), name = paste0(“Average (”,start_year,“-2024)”), hoverinfo = “text”, text = ~paste0(“Year: Average (”,start_year,“-2024)<br>Week:”, week, “<br>Change:”, round(avg_pct_change, 2), “%”))</p>
 </section>
 <section id="update-layout" class="level1">
 <h1>Update layout</h1>
 <p>p &lt;- p %&gt;% layout( xaxis = list( title = “Week”, range = c(1, 52), showgrid = FALSE, tickmode = “array”, tickvals = c(1, 10, 20, 30, 40, 50), ticktext = c(“1”, “10”, “20”, “30”, “40”, “50”) ), yaxis = list(title = “% Change”), showlegend = TRUE, legend = list(orientation = “h”, y = 1.1), hovermode = “closest” ) %&gt;% config( displayModeBar = FALSE )</p>
 </section>
-<section id="add-the-highlight-effect-after-all-traces-are-added" class="level1">
-<h1>Add the highlight effect after all traces are added</h1>
+<section id="add-the-highlight-effect" class="level1">
+<h1>Add the highlight effect</h1>
 <p>p &lt;- p %&gt;% highlight( on = “plotly_hover”, off = “plotly_unhover”, selected = list(line = list(color = “black”, width = 3)), opacityDim = 0.2 )</p>
 </section>
 <section id="display-the-plot" class="level1">
