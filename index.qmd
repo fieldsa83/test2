@@ -76,13 +76,13 @@ p <- add_trace(p, x = c(1), y = c(NA), type = 'scatter', mode = 'lines',
                hoverinfo = 'none')
 
 # Add trace for 2025
-if(nrow(df_2025) > 0) {
+if(exists("df_2025") && is.data.frame(df_2025) && nrow(df_2025) > 0) {
   p <- add_trace(p, x = ~week, y = ~pct_change, data = df_2025,
-                 type = 'scatter', mode = 'lines',
-                 line = list(color = '#336699', width = 2),
-                 name = '2025',
-                 hoverinfo = "text",
-                 text = ~paste("Year: 2025<br>Week:", week, "<br>Change:", round(pct_change, 2), "%"))
+               type = 'scatter', mode = 'lines',
+               line = list(color = '#336699', width = 2),
+               name = '2025',
+               hoverinfo = "text",
+               text = ~paste("Year: 2025<br>Week:", week, "<br>Change:", round(pct_change, 2), "%"))
 }
 
 # Add trace for average of historical data
