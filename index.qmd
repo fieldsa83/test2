@@ -111,7 +111,7 @@ config(
 p <- p %>% 
   highlight(
     on = "plotly_hover",
-    off = "plotly_unhover",
+    off = "plotly_doubleclick",  # Changed from "plotly_unhover" to a valid option
     selected = list(line = list(color = "black", width = 3)),
     opacityDim = 0.2
   )
