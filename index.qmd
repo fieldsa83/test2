@@ -106,7 +106,17 @@ p <- p %>% layout(
 ) %>%
 config(
   displayModeBar = FALSE
-)
+) %>%
+  layout(
+    hoverdistance = 100,
+    hovermode = "x",
+    # This is the key part that changes line color on hover
+    hoverlabel = list(
+      bgcolor = "white",
+      font = list(color = "black"),
+      bordercolor = "black"
+    )
+  )
 # Display the plot
 p
 ```
