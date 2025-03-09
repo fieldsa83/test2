@@ -51,6 +51,11 @@ df_avg_historical <- df_historical %>%
   group_by(week) %>%
   summarise(avg_pct_change = mean(pct_change, na.rm = TRUE))
 
+# ADD HIGHLIGHT KEYS
+df_historical <- df_historical %>% highlight_key(~year)
+df_2025 <- df_2025 %>% highlight_key(~year)
+df_avg_historical <- df_avg_historical %>% highlight_key(~week)
+
 # Create the plot
 p <- plot_ly()
 
