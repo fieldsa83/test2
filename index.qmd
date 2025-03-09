@@ -1,61 +1,70 @@
-::: {style="font-size: 14pt;font-weight: bold;margin-bottom: 10px; margin-top: 20px"}
-NASDAQ Weekly % Change Relative to Start of Year
-:::
-```{r}
 #| echo: false
 #| warning: false
 #| message: false
-
 # Load necessary libraries
 library(quantmod)
 library(dplyr)
 library(lubridate)
 library(plotly)
 
-# Calculate data as before...
+# Function to calculate weekly returns indexed to start of year
+calculate_weekly_returns <- function(symbol, start_date, end_date) {
+  data <- getSymbols(symbol, from = start_date, to = end_date, src = "yahoo", auto.assign = FALSE)
+  prices <- Ad(data)
+  
+  df <- data.frame(date = index(prices), price = as.numeric(prices))
+  df <- df %>%
+    mutate(year = year(date),
+           week = week(date)) %>%
+    group_by(year, week) %>%
+    summarise(date = last(date), price = last(price), .groups = 'drop') %>%
+    arrange(date)
+  
+  df <- df %>%
+    group_by(year) %>%
+    mutate(pct_change = (price / first(price) - 1) * 100) %>%
+    filter(week <= 52) %>%
+    ungroup()
+  
+  return(df)
+}
 
-# First, ensure both dataframes exist and have the right structure
+# Set date range
+end_date <- Sys.Date()
+start_date <- as.Date("2008-01-01")
+start_year <- as.integer(format(start_date, "%Y"))
+
+# Calculate weekly returns for NASDAQ - MAKE SURE THIS IS EXECUTED
+nasdaq_returns <- calculate_weekly_returns("^IXIC", start_date, end_date)
+
+# Split data into dataframes
 df_historical <- nasdaq_returns %>% filter(year >= start_year & year <= 2024)
 df_2025 <- nasdaq_returns %>% filter(year == 2025)
 df_avg_historical <- df_historical %>%
   group_by(week) %>%
   summarise(avg_pct_change = mean(pct_change, na.rm = TRUE))
 
-# Only apply highlight_key to dataframes that exist and have rows
-if(nrow(df_historical) > 0) {
-  df_historical <- df_historical %>% mutate(id = as.character(year)) %>% highlight_key(~id)
-}
-
-if(nrow(df_avg_historical) > 0) {
-  df_avg_historical <- df_avg_historical %>% mutate(id = "average") %>% highlight_key(~id)
-}
-
 # Create the plot
 p <- plot_ly()
 
 # Add traces for historical data
-if(nrow(df_historical) > 0) {
-  p <- add_trace(p, x = ~week, y = ~pct_change, data = df_historical,
-               type = 'scatter', mode = 'lines', split = ~year,
-               line = list(color = 'grey', width = 1),
-               opacity = 0.3,
-               hoverinfo = "text",
-               text = ~paste("Year:", year, "<br>Week:", week, "<br>Change:", round(pct_change, 2), "%"),
-               showlegend = FALSE)
-}
+p <- add_trace(p, x = ~week, y = ~pct_change, data = df_historical,
+             type = 'scatter', mode = 'lines', split = ~year,
+             line = list(color = 'grey', width = 1),
+             opacity = 0.3,
+             hoverinfo = "text",
+             text = ~paste("Year:", year, "<br>Week:", week, "<br>Change:", round(pct_change, 2), "%"),
+             showlegend = FALSE)
 
 # Add a custom trace for the historical legend entry
 p <- add_trace(p, x = c(1), y = c(NA), type = 'scatter', mode = 'lines',
-               line = list(color = 'grey', width = 1),
-               opacity = 0.3,
-               name = '',
-               hoverinfo = 'none')
+             line = list(color = 'grey', width = 1),
+             opacity = 0.3,
+             name = '',
+             hoverinfo = 'none')
 
-# Add trace for 2025 (only if data exists)
+# Add trace for 2025
 if(nrow(df_2025) > 0) {
-  # Apply highlight_key only if we have data
-  df_2025 <- df_2025 %>% mutate(id = "2025") %>% highlight_key(~id)
-  
   p <- add_trace(p, x = ~week, y = ~pct_change, data = df_2025,
                type = 'scatter', mode = 'lines',
                line = list(color = '#336699', width = 2),
@@ -65,15 +74,13 @@ if(nrow(df_2025) > 0) {
 }
 
 # Add trace for average of historical data
-if(nrow(df_avg_historical) > 0) {
-  p <- add_trace(p, x = ~week, y = ~avg_pct_change, data = df_avg_historical,
-               type = 'scatter', mode = 'lines',
-               opacity = 1,
-               line = list(color = 'darkred', width = 2, dash = 'dot'),
-               name = paste0("Average (",start_year,"-2024)"),
-               hoverinfo = "text",
-               text = ~paste0("Year: Average (",start_year,"-2024)<br>Week:", week, "<br>Change:", round(avg_pct_change, 2), "%"))
-}
+p <- add_trace(p, x = ~week, y = ~avg_pct_change, data = df_avg_historical,
+             type = 'scatter', mode = 'lines',
+             opacity = 1,
+             line = list(color = 'darkred', width = 2, dash = 'dot'),
+             name = paste0("Average (",start_year,"-2024)"),
+             hoverinfo = "text",
+             text = ~paste0("Year: Average (",start_year,"-2024)<br>Week:", week, "<br>Change:", round(avg_pct_change, 2), "%"))
 
 # Update layout
 p <- p %>% layout(
@@ -94,7 +101,7 @@ config(
   displayModeBar = FALSE
 )
 
-# Add the highlight effect after all traces are added
+# Add the highlight effect
 p <- p %>% 
   highlight(
     on = "plotly_hover",
@@ -105,5 +112,3 @@ p <- p %>%
 
 # Display the plot
 p
-
-```
