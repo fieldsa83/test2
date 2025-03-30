@@ -6,7 +6,6 @@ NASDAQ Weekly % Change Relative to Start of Year
 #| warning: false
 #| message: false
 
-
 # Load necessary libraries
 library(quantmod)
 library(dplyr)
