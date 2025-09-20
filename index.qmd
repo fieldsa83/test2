@@ -42,7 +42,7 @@ df_hist <- df_with_dates %>%
   arrange(Year, Week) %>%
   group_by(Year) %>%
   mutate(
-    change_from_year_start = (`IXIC.Adjusted` / first(`IXIC.Adjusted`)) - 1
+    change_from_year_start = ((`IXIC.Adjusted` / first(`IXIC.Adjusted`)) - 1)*100
   ) %>%
   ungroup()
 
@@ -71,7 +71,7 @@ p <- add_trace(p,
                text = ~paste(
                  "Year:", Year, 
                  "<br>Week:", Week, 
-                 "<br>Change:", percent(change_from_year_start, accuracy = 0.1)
+                 "<br>Change:", round(change_from_year_start, 1),"%"
                ),
                showlegend = FALSE
 )
@@ -89,7 +89,7 @@ p <- add_trace(p,
                text = ~paste(
                  "Year: Average",
                  "<br>Week:", Week, 
-                 "<br>Change:", percent(avg_change, accuracy = 0.1)
+                 "<br>Change:", round(avg_change, 1),"%"
                )
 )
 
@@ -107,7 +107,7 @@ if(nrow(df_current_year) > 0) {
                  text = ~paste(
                    "Year:", Year,
                    "<br>Week:", Week, 
-                   "<br>Change:", percent(change_from_year_start, accuracy = 0.01)
+                   "<br>Change:", round(change_from_year_start, 1),"%"
                  )
   )
 }
@@ -117,7 +117,7 @@ p <- p %>% layout(
   #title = "NASDAQ Weekly Performance Since Start of Year",
   xaxis = list(
     title = "Week",
-    range = c(1, 52),
+    range = c(0.5, 53),
     showgrid = FALSE,
     tickmode = "array",
     tickvals = c(1, 10, 20, 30, 40, 50),
@@ -141,5 +141,7 @@ p <- p %>% layout(
 
 # Display the final plot
 p
+
+
 
 ```
