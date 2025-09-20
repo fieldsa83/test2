@@ -8,115 +8,138 @@ NASDAQ Weekly % Change Relative to Start of Year
 #| warning: false
 #| message: false
 
-# Load necessary libraries
+# Load the necessary libraries
 library(quantmod)
 library(dplyr)
-library(lubridate)
 library(plotly)
+library(scales) 
 
-# Function to calculate weekly returns indexed to start of year
-calculate_weekly_returns <- function(symbol, start_date, end_date) {
-  data <- getSymbols(symbol, from = start_date, to = end_date, src = "yahoo", auto.assign = FALSE)
-  prices <- Ad(data)
-  
-  df <- data.frame(date = index(prices), price = as.numeric(prices))
-  df <- df %>%
-    mutate(year = year(date),
-           week = week(date)) %>%
-    group_by(year, week) %>%
-    summarise(date = last(date), price = last(price), .groups = 'drop') %>%
-    arrange(date)
-  
-  df <- df %>%
-    group_by(year) %>%
-    mutate(pct_change = (price / first(price) - 1) * 100) %>%
-    filter(week <= 52) %>%
-    ungroup()
-  
-  return(df)
-}
+# Define the current year for dynamic filtering
+current_year <- 2025
 
-# Set date range
-end_date <- Sys.Date()
-start_date <- as.Date("2008-01-01")
-start_year <- as.integer(format(start_date, "%Y"))
+# 1. Get NASDAQ data starting from 2008
+df_hist_xts <- getSymbols("^IXIC", 
+                          from = "2008-01-01", 
+                          to = "2025-12-31",
+                          src = "yahoo", 
+                          auto.assign = FALSE)
 
-# Calculate weekly returns for NASDAQ - MAKE SURE THIS IS EXECUTED
-nasdaq_returns <- calculate_weekly_returns("^IXIC", start_date, end_date)
+# 2. Get the last trading day of each week
+weekly_endpoints <- endpoints(df_hist_xts, on = "weeks")
+last_day_of_week <- df_hist_xts[weekly_endpoints, ]
 
-# Split data into dataframes
-df_historical <- nasdaq_returns %>% filter(year >= start_year & year <= 2024)
-df_2025 <- nasdaq_returns %>% filter(year == 2025)
-df_avg_historical <- df_historical %>%
-  group_by(week) %>%
-  summarise(avg_pct_change = mean(pct_change, na.rm = TRUE))
+# 3. Convert to a data.frame and add date columns
+df_with_dates <- data.frame(Date = index(last_day_of_week), 
+                            coredata(last_day_of_week)) %>%
+  mutate(
+    Year  = as.numeric(format(Date, "%Y")),
+    Month = as.numeric(format(Date, "%m")),
+    Week  = as.numeric(format(Date, "%V"))
+  )
 
-# Create the plot
+# 4. Group by year and calculate the change using backticks
+df_hist <- df_with_dates %>%
+  arrange(Year, Week) %>%
+  group_by(Year) %>%
+  mutate(
+    change_from_year_start = (`IXIC.Adjusted` / first(`IXIC.Adjusted`)) - 1
+  ) %>%
+  ungroup()
+
+# 5. Prepare the data for plotting
+df_historical_plain <- df_hist %>% filter(Year < current_year, Week <= 52)
+df_current_year <- df_hist %>% filter(Year == current_year)
+
+df_avg_historical <- df_historical_plain %>%
+  group_by(Week) %>%
+  summarise(avg_change = mean(change_from_year_start, na.rm = TRUE))
+
+# --- 6. Create the plot ---
 p <- plot_ly()
 
-# Add traces for historical data
-p <- add_trace(p, x = ~week, y = ~pct_change, data = df_historical,
-             type = 'scatter', mode = 'lines', split = ~year,
-             line = list(color = 'grey', width = 1),
-             opacity = 0.3,
-             hoverinfo = "text",
-             text = ~paste("Year:", year, "<br>Week:", week, "<br>Change:", round(pct_change, 2), "%"),
-             showlegend = FALSE)
-
-# Add a custom trace for the historical legend entry
-p <- add_trace(p, x = c(1), y = c(NA), type = 'scatter', mode = 'lines',
-             line = list(color = 'grey', width = 1),
-             opacity = 0.3,
-             name = '',
-             hoverinfo = 'none')
-
-# Add trace for 2025
-if(nrow(df_2025) > 0) {
-  p <- add_trace(p, x = ~week, y = ~pct_change, data = df_2025,
-               type = 'scatter', mode = 'lines',
-               line = list(color = '#336699', width = 2),
-               name = '2025',
+# Add traces for all historical years
+p <- add_trace(p, 
+               data = df_historical_plain, # Using the plain data frame now
+               x = ~Week, 
+               y = ~change_from_year_start,
+               type = 'scatter', 
+               mode = 'lines', 
+               split = ~Year, 
+               line = list(color = 'grey', width = 1),
+               opacity = 0.3,
                hoverinfo = "text",
-               text = ~paste("Year: 2025<br>Week:", week, "<br>Change:", round(pct_change, 2), "%"))
+               text = ~paste(
+                 "Year:", Year, 
+                 "<br>Week:", Week, 
+                 "<br>Change:", percent(change_from_year_start, accuracy = 0.1)
+               ),
+               showlegend = FALSE
+)
+
+# Add trace for the historical average
+p <- add_trace(p, 
+               data = df_avg_historical,
+               x = ~Week, 
+               y = ~avg_change,
+               type = 'scatter', 
+               mode = 'lines',
+               line = list(color = 'darkred', width = 2, dash = 'dot'),
+               name = paste0("Average (", min(df_historical_plain$Year), "-", max(df_historical_plain$Year), ")"),
+               hoverinfo = "text",
+               text = ~paste(
+                 "Year: Average",
+                 "<br>Week:", Week, 
+                 "<br>Change:", percent(avg_change, accuracy = 0.1)
+               )
+)
+
+# Add trace for the current year
+if(nrow(df_current_year) > 0) {
+  p <- add_trace(p, 
+                 data = df_current_year,
+                 x = ~Week, 
+                 y = ~change_from_year_start,
+                 type = 'scatter', 
+                 mode = 'lines',
+                 line = list(color = '#336699', width = 2),
+                 name = as.character(current_year),
+                 hoverinfo = "text",
+                 text = ~paste(
+                   "Year:", Year,
+                   "<br>Week:", Week, 
+                   "<br>Change:", percent(change_from_year_start, accuracy = 0.01)
+                 )
+  )
 }
 
-# Add trace for average of historical data
-p <- add_trace(p, x = ~week, y = ~avg_pct_change, data = df_avg_historical,
-             type = 'scatter', mode = 'lines',
-             opacity = 1,
-             line = list(color = 'darkred', width = 2, dash = 'dot'),
-             name = paste0("Average (",start_year,"-2024)"),
-             hoverinfo = "text",
-             text = ~paste0("Year: Average (",start_year,"-2024)<br>Week:", week, "<br>Change:", round(avg_pct_change, 2), "%"))
-
-# Update layout
+# 7. Apply layout and configuration
 p <- p %>% layout(
+  #title = "NASDAQ Weekly Performance Since Start of Year",
   xaxis = list(
-    title = "Week", 
+    title = "Week",
     range = c(1, 52),
     showgrid = FALSE,
     tickmode = "array",
     tickvals = c(1, 10, 20, 30, 40, 50),
     ticktext = c("1", "10", "20", "30", "40", "50")
   ),
-  yaxis = list(title = "% Change"),
+  yaxis = list(
+    title = "% Change",
+    #tickformat = ".0%", 
+    showgrid = TRUE,
+    gridcolor = "#e5e5e5"
+  ),
   showlegend = TRUE,
   legend = list(orientation = "h", y = 1.1),
-  hovermode = "closest"
+  hovermode = "closest",
+  plot_bgcolor = "white"
 ) %>%
-config(
-  displayModeBar = FALSE
-)
-
-# Add the highlight effect
-p <- p %>% 
-  highlight(
-    on = "plotly_hover",
-    off = "plotly_doubleclick",  # Changed from "plotly_unhover" to a valid option
-    selected = list(line = list(color = "black", width = 3)),
-    opacityDim = 0.2
+  config(
+    displayModeBar = FALSE 
   )
+# REMOVED: The highlight() pipe was causing the performance issues.
 
-# Display the plot
+# Display the final plot
 p
+
 ```
