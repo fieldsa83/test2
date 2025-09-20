@@ -76,23 +76,6 @@ p <- add_trace(p,
                showlegend = FALSE
 )
 
-# Add trace for the historical average
-p <- add_trace(p, 
-               data = df_avg_historical,
-               x = ~Week, 
-               y = ~avg_change,
-               type = 'scatter', 
-               mode = 'lines',
-               line = list(color = 'darkred', width = 2, dash = 'dot'),
-               name = paste0("Average (", min(df_historical_plain$Year), "-", max(df_historical_plain$Year), ")"),
-               hoverinfo = "text",
-               text = ~paste(
-                 "Year: Average",
-                 "<br>Week:", Week, 
-                 "<br>Change:", round(avg_change, 1),"%"
-               )
-)
-
 # Add trace for the current year
 if(nrow(df_current_year) > 0) {
   p <- add_trace(p, 
@@ -111,6 +94,25 @@ if(nrow(df_current_year) > 0) {
                  )
   )
 }
+
+# Add trace for the historical average
+p <- add_trace(p, 
+               data = df_avg_historical,
+               x = ~Week, 
+               y = ~avg_change,
+               type = 'scatter', 
+               mode = 'lines',
+               line = list(color = 'darkred', width = 2, dash = 'dot'),
+               name = paste0("Average (", min(df_historical_plain$Year), "-", max(df_historical_plain$Year), ")"),
+               hoverinfo = "text",
+               text = ~paste(
+                 "Year: Average",
+                 "<br>Week:", Week, 
+                 "<br>Change:", round(avg_change, 1),"%"
+               )
+)
+
+
 
 # 7. Apply layout and configuration
 p <- p %>% layout(
