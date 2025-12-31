@@ -46,7 +46,7 @@ df_hist <- df_with_dates %>%
   ungroup()
 
 # 5. Prepare the data for plotting
-df_historical_plain <- df_hist %>% filter(Year < current_year, Week <= 52)
+df_historical_plain <- df_hist %>% filter(Year < current_year, Week <= 53)
 df_current_year <- df_hist %>% filter(Year == current_year)
 
 df_avg_historical <- df_historical_plain %>%
