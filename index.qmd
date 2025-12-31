@@ -9,10 +9,11 @@ NASDAQ Weekly % Change Relative to Start of Year
 #| warning: false
 #| message: false
 
-# Load libraries
+# Load the necessary libraries
 library(quantmod)
 library(dplyr)
 library(plotly)
+library(scales) 
 
 # Define the current year for dynamic filtering
 current_year <- 2025
@@ -75,59 +76,52 @@ df_avg_historical <- df_historical_plain %>%
   group_by(Week) %>%
   summarise(avg_change = mean(change_from_year_start, na.rm = TRUE))
 
-# --- STEP E: Plotting ---
+# 7. Create the Plot
 p <- plot_ly()
 
-# Historical Years
+# Historical traces
 p <- add_trace(p, 
-               data = df_hist_plain,
-               x = ~Week, 
-               y = ~change_from_year_start,
-               type = 'scatter', 
-               mode = 'lines', 
-               split = ~Year, 
+               data = df_historical_plain,
+               x = ~Week, y = ~change_from_year_start,
+               type = 'scatter', mode = 'lines', split = ~Year, 
                line = list(color = 'grey', width = 1),
                opacity = 0.3,
                hoverinfo = "text",
-               text = ~paste("Year:", Year, "<br>Week:", Week, "<br>Change:", round(change_from_year_start, 1),"%"),
+               text = ~paste("Year:", Year, "<br>Week:", Week, "<br>YTD:", round(change_from_year_start, 1),"%"),
                showlegend = FALSE)
 
-# Current Year
-if(nrow(df_curr_year) > 0) {
+# Current Year trace
+if(nrow(df_current_year) > 0) {
   p <- add_trace(p, 
-                 data = df_curr_year,
-                 x = ~Week, 
-                 y = ~change_from_year_start,
-                 type = 'scatter', 
-                 mode = 'lines',
+                 data = df_current_year,
+                 x = ~Week, y = ~change_from_year_start,
+                 type = 'scatter', mode = 'lines',
                  line = list(color = '#336699', width = 3),
                  name = as.character(current_year),
                  hoverinfo = "text",
-                 text = ~paste("Year:", Year, "<br>Week:", Week, "<br>Change:", round(change_from_year_start, 1),"%"))
+                 text = ~paste("Year:", Year, "<br>Week:", Week, "<br>YTD:", round(change_from_year_start, 1),"%"))
 }
 
-# Average Line
+# Average trace
 p <- add_trace(p, 
-               data = df_avg,
-               x = ~Week, 
-               y = ~avg_change,
-               type = 'scatter', 
-               mode = 'lines',
+               data = df_avg_historical,
+               x = ~Week, y = ~avg_change,
+               type = 'scatter', mode = 'lines',
                line = list(color = 'darkred', width = 2, dash = 'dot'),
-               name = "Average 2018-2024",
+               name = "Avg YTD",
                hoverinfo = "text",
-               text = ~paste("Average", "<br>Week:", Week, "<br>Change:", round(avg_change, 1),"%"))
+               text = ~paste("Average", "<br>Week:", Week, "<br>YTD:", round(avg_change, 1),"%"))
 
 # Layout
 p <- p %>% layout(
   xaxis = list(
-    title = "Week",
+    title = "Week (53 = Final Year End)",
     range = c(0.5, 53.5),
     showgrid = FALSE,
-    tickvals = c(1, 10, 20, 30, 40, 50),
-    ticktext = c("1", "10", "20", "30", "40", "50")
+    tickvals = c(1, 10, 20, 30, 40, 50, 53),
+    ticktext = c("1", "10", "20", "30", "40", "50", "End")
   ),
-  yaxis = list(title = "% Change", showgrid = TRUE, gridcolor = "#e5e5e5"),
+  yaxis = list(title = "YTD % Change", showgrid = TRUE, gridcolor = "#e5e5e5"),
   showlegend = TRUE,
   legend = list(orientation = "h", y = 1.1),
   plot_bgcolor = "white"
