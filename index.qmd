@@ -2,6 +2,7 @@
 #| warning: false
 #| message: false
 
+```{r}
 # Load libraries
 library(quantmod)
 library(dplyr)
@@ -133,3 +134,4 @@ p <- p %>% layout(
 ) %>% config(displayModeBar = FALSE)
 
 p
+```
