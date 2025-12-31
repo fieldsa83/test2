@@ -13,54 +13,70 @@ library(dplyr)
 library(plotly)
 library(scales) 
 
-# Define the current year for dynamic filtering
+# Define current year
 current_year <- 2025
 
-# 1. Get NASDAQ data starting from 2008
+# 1. Get Daily Data
 df_hist_xts <- getSymbols("^IXIC", 
                           from = "2008-01-01", 
                           to = "2025-12-31",
                           src = "yahoo", 
                           auto.assign = FALSE)
 
-# 2. Get the last trading day of each week
-weekly_endpoints <- endpoints(df_hist_xts, on = "weeks")
-last_day_of_week <- df_hist_xts[weekly_endpoints, ]
+# --- STEP A: Calculate the "True" Start Price for each Year ---
+# We need the close of the FIRST trading day to calculate accurate YTD
+year_start_endpoints <- endpoints(df_hist_xts, on = "years")
+# The 'endpoints' function returns the LAST index of the period. 
+# To get the FIRST index of the year, we take the previous year's end + 1.
+# (We handle the first year manually or just use a grouping trick)
 
-# 3. Convert to a data.frame and add date columns
-df_with_dates <- data.frame(Date = index(last_day_of_week), 
-                            coredata(last_day_of_week)) %>%
+df_daily <- data.frame(Date = index(df_hist_xts), coredata(df_hist_xts)) %>%
+  mutate(Year = as.numeric(format(Date, "%Y")))
+
+# Group by Year and take the first available Close price
+df_start_prices <- df_daily %>%
+  group_by(Year) %>%
+  summarise(Start_Price = first(`IXIC.Adjusted`))
+
+# --- STEP B: Natural Weeks (1 to 52) ---
+weekly_idx <- endpoints(df_hist_xts, on = "weeks")
+df_weekly <- df_hist_xts[weekly_idx, ]
+df_weekly <- data.frame(Date = index(df_weekly), coredata(df_weekly)) %>%
   mutate(
-    Year  = as.numeric(format(Date, "%Y")),
-    Month = as.numeric(format(Date, "%m")),
-    # FIX 1: "Day of Year" Logic
-    # This prevents the ISO "Week 1" glitch by basing the week on day count (0-365).
-    # It ensures weeks flow strictly 1 -> 53.
-    Week  = (as.numeric(format(Date, "%j")) - 1) %/% 7 + 1
+    Year = as.numeric(format(Date, "%Y")),
+    Week = as.numeric(format(Date, "%V")) # ISO Week
+  ) %>%
+  # Filter for standard weeks only. 
+  # We exclude "Week 53" here because we will manually create the perfect one later.
+  # We also exclude the "Week 1" glitch where Dec 31 is labeled as Week 1.
+  filter(Week <= 52, !(format(Date, "%m") == "12" & Week == 1))
+
+# --- STEP C: The "Special" Week 53 (Year End) ---
+yearly_idx <- endpoints(df_hist_xts, on = "years")
+df_yearend <- df_hist_xts[yearly_idx, ]
+df_yearend <- data.frame(Date = index(df_yearend), coredata(df_yearend)) %>%
+  mutate(
+    Year = as.numeric(format(Date, "%Y")),
+    Week = 53 # Hard-code this as the final bucket
   )
 
-# 4. Group by year, calculate change, and align the finish line
-df_hist <- df_with_dates %>%
-  arrange(Year, Week) %>%
-  group_by(Year) %>%
+# --- STEP D: Combine and Calculate ---
+# Combine the natural weeks with the special year-end week
+df_combined <- bind_rows(df_weekly, df_yearend) %>%
+  arrange(Year, Week)
+
+# Join with the Start Prices and calculate % Change
+df_plot <- left_join(df_combined, df_start_prices, by = "Year") %>%
   mutate(
-    # FIX 2: The "True YTD" Enforcer
-    # We force the very last trading day of every year to be "Week 53".
-    # This aligns the final annual return of every year at the same x-axis point.
-    Week = ifelse(Date == max(Date), 53, Week),
-    
-    # Calculate performance relative to the first week of the year
-    change_from_year_start = ((`IXIC.Adjusted` / first(`IXIC.Adjusted`)) - 1) * 100
-  ) %>%
-  ungroup()
+    change_from_year_start = ((`IXIC.Adjusted` / Start_Price) - 1) * 100
+  )
 
-# 5. Prepare the data for plotting
-df_historical_plain <- df_hist %>% filter(Year < current_year, Week <= 53)
-df_current_year <- df_hist %>% filter(Year == current_year)
+# Split into historical and current
+df_hist_plain <- df_plot %>% filter(Year < current_year)
+df_curr_year  <- df_plot %>% filter(Year == current_year)
 
-# Calculate the historical average
-# Because of Fix 2, the average at Week 53 is now the true Average Annual Return.
-df_avg_historical <- df_historical_plain %>%
+# Calculate Average
+df_avg <- df_hist_plain %>%
   group_by(Week) %>%
   summarise(avg_change = mean(change_from_year_start, na.rm = TRUE))
 
