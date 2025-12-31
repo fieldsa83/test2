@@ -18,7 +18,6 @@ library(scales)
 current_year <- 2025
 
 # 1. Get NASDAQ data starting from 2008
-# Note: Since 2008 has no "2007" baseline in this pull, we handle it in Step 4.
 df_hist_xts <- getSymbols("^IXIC", 
                           from = "2008-01-01", 
                           to = "2025-12-31",
@@ -36,7 +35,8 @@ yearly_endpoints <- endpoints(df_hist_xts, on = "years")
 df_baselines <- data.frame(
   # Shift Year +1 so "2024 Close" becomes "2025 Baseline"
   Year = as.numeric(format(index(df_hist_xts[yearly_endpoints]), "%Y")) + 1, 
-  Baseline_Price = coredata(df_hist_xts[yearly_endpoints, "IXIC.Adjusted"])
+  # FIX: Use as.numeric() to prevent R from creating "Baseline_Price.IXIC.Adjusted"
+  Baseline_Price = as.numeric(coredata(df_hist_xts[yearly_endpoints, "IXIC.Adjusted"]))
 )
 
 # 3. Prepare Data Frames (Natural Weeks + Special Week 53)
@@ -68,7 +68,7 @@ df_hist <- bind_rows(df_weekly, df_yearend) %>%
 # --- NEW LOGIC END ---
 
 # 5. Prepare the data for plotting
-df_historical_plain <- df_hist %>% filter(Year < current_year) # Week filter removed (includes 53)
+df_historical_plain <- df_hist %>% filter(Year < current_year) 
 df_current_year <- df_hist %>% filter(Year == current_year)
 
 df_avg_historical <- df_historical_plain %>%
@@ -138,11 +138,11 @@ p <- p %>% layout(
   #title = "NASDAQ Weekly Performance Since Start of Year",
   xaxis = list(
     title = "Week",
-    range = c(0.5, 53.5), # CHANGED: Extended to 53.5 to fit the end dot
+    range = c(0.5, 53.5), 
     showgrid = FALSE,
     tickmode = "array",
-    tickvals = c(1, 10, 20, 30, 40, 50, 53), # CHANGED: Added 53
-    ticktext = c("1", "10", "20", "30", "40", "50", "End") # CHANGED: Added "End" label
+    tickvals = c(1, 10, 20, 30, 40, 50), 
+    ticktext = c("1", "10", "20", "30", "40", "50") 
   ),
   yaxis = list(
     title = "% Change",
@@ -158,7 +158,6 @@ p <- p %>% layout(
   config(
     displayModeBar = FALSE 
   )
-# REMOVED: The highlight() pipe was causing the performance issues.
 
 # Display the final plot
 p
