@@ -118,7 +118,7 @@ p <- p %>% layout(
   #title = "NASDAQ Weekly Performance Since Start of Year",
   xaxis = list(
     title = "Week",
-    range = c(0.5, 53),
+    range = c(0.5, 53.5),
     showgrid = FALSE,
     tickmode = "array",
     tickvals = c(1, 10, 20, 30, 40, 50),
