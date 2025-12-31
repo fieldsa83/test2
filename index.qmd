@@ -1,4 +1,3 @@
-
 ::: {style="font-size: 14pt;font-weight: bold;margin-bottom: 10px; margin-top: 20px"}
 NASDAQ Weekly % Change Relative to Start of Year
 :::
@@ -18,114 +17,150 @@ library(scales)
 # Define the current year for dynamic filtering
 current_year <- 2025
 
-# 1. Get NASDAQ data
-# Note: Ideally this should start earlier (e.g. 2007) so 2008 has a baseline, 
-# but for this script we will handle the missing baseline gracefully.
+# 1. Get NASDAQ data starting from 2008
+# Note: Since 2008 has no "2007" baseline in this pull, we handle it in Step 4.
 df_hist_xts <- getSymbols("^IXIC", 
                           from = "2008-01-01", 
                           to = "2025-12-31",
                           src = "yahoo", 
                           auto.assign = FALSE)
 
-# 2. Define Baselines (Closing Price of Previous Year)
-# Official YTD is calculated vs the Close of Dec 31st of the PRIOR year.
-yearly_ends <- endpoints(df_hist_xts, on = "years")
+# 2. Get the last trading day of each week (Standard 1-52)
+weekly_endpoints <- endpoints(df_hist_xts, on = "weeks")
+last_day_of_week <- df_hist_xts[weekly_endpoints, ]
 
-# We grab the close prices of year ends and shift the Year label +1 
-# (e.g., 2024's Close becomes 2025's Baseline)
+# --- NEW LOGIC START ---
+
+# 2.5 Get Year Baselines (Official YTD uses Previous Year Close)
+yearly_endpoints <- endpoints(df_hist_xts, on = "years")
 df_baselines <- data.frame(
-  Year = as.numeric(format(index(df_hist_xts[yearly_ends]), "%Y")) + 1, 
-  Baseline_Price = coredata(df_hist_xts[yearly_ends, "IXIC.Adjusted"])
+  # Shift Year +1 so "2024 Close" becomes "2025 Baseline"
+  Year = as.numeric(format(index(df_hist_xts[yearly_endpoints]), "%Y")) + 1, 
+  Baseline_Price = coredata(df_hist_xts[yearly_endpoints, "IXIC.Adjusted"])
 )
 
-# 3. Prepare "Natural" Weeks (1-52)
-# We exclude the glitchy "Week 1" at year end and "Week 53" (which we build manually)
-weekly_idx <- endpoints(df_hist_xts, on = "weeks")
-df_weekly <- data.frame(Date = index(df_hist_xts[weekly_idx]), 
-                        coredata(df_hist_xts[weekly_idx])) %>%
+# 3. Prepare Data Frames (Natural Weeks + Special Week 53)
+# Part A: Natural Weeks (Filter out ISO glitches)
+df_weekly <- data.frame(Date = index(last_day_of_week), coredata(last_day_of_week)) %>%
   mutate(Year = as.numeric(format(Date, "%Y")), 
          Week = as.numeric(format(Date, "%V"))) %>%
   filter(Week <= 52, !(format(Date, "%m") == "12" & Week == 1))
 
-# 4. Prepare "Year End" (Week 53)
-# We force the exact last trading day of the year into a "Week 53" bucket
-yearly_idx <- endpoints(df_hist_xts, on = "years")
-df_yearend <- data.frame(Date = index(df_hist_xts[yearly_idx]), 
-                         coredata(df_hist_xts[yearly_idx])) %>%
+# Part B: Week 53 (Force the exact Year-End Close to be Week 53)
+last_day_of_year <- df_hist_xts[yearly_endpoints, ]
+df_yearend <- data.frame(Date = index(last_day_of_year), coredata(last_day_of_year)) %>%
   mutate(Year = as.numeric(format(Date, "%Y")), 
          Week = 53)
 
-# 5. Join and Calculate % Change
+# 4. Merge, Join Baseline, and Calculate
 df_hist <- bind_rows(df_weekly, df_yearend) %>%
   left_join(df_baselines, by = "Year") %>%
   arrange(Year, Week) %>%
   group_by(Year) %>%
   mutate(
-    # If 2008 doesn't have a 2007 baseline, use the first price available
+    # Handle 2008 edge case (no 2007 baseline): use first available price
     Baseline_Price = ifelse(is.na(Baseline_Price), first(IXIC.Adjusted), Baseline_Price),
     # Official YTD Calculation
     change_from_year_start = ((IXIC.Adjusted / Baseline_Price) - 1) * 100
   ) %>%
   ungroup()
 
-# 6. Prepare Plot Data
-df_historical_plain <- df_hist %>% filter(Year < current_year)
+# --- NEW LOGIC END ---
+
+# 5. Prepare the data for plotting
+df_historical_plain <- df_hist %>% filter(Year < current_year) # Week filter removed (includes 53)
 df_current_year <- df_hist %>% filter(Year == current_year)
 
 df_avg_historical <- df_historical_plain %>%
   group_by(Week) %>%
   summarise(avg_change = mean(change_from_year_start, na.rm = TRUE))
 
-# 7. Create the Plot
+# --- 6. Create the plot ---
 p <- plot_ly()
 
-# Historical traces
+# Add traces for all historical years
 p <- add_trace(p, 
-               data = df_historical_plain,
-               x = ~Week, y = ~change_from_year_start,
-               type = 'scatter', mode = 'lines', split = ~Year, 
+               data = df_historical_plain, 
+               x = ~Week, 
+               y = ~change_from_year_start,
+               type = 'scatter', 
+               mode = 'lines', 
+               split = ~Year, 
                line = list(color = 'grey', width = 1),
                opacity = 0.3,
                hoverinfo = "text",
-               text = ~paste("Year:", Year, "<br>Week:", Week, "<br>YTD:", round(change_from_year_start, 1),"%"),
-               showlegend = FALSE)
+               text = ~paste(
+                 "Year:", Year, 
+                 "<br>Week:", Week, 
+                 "<br>Change:", round(change_from_year_start, 1),"%"
+               ),
+               showlegend = FALSE
+)
 
-# Current Year trace
+# Add trace for the current year
 if(nrow(df_current_year) > 0) {
   p <- add_trace(p, 
                  data = df_current_year,
-                 x = ~Week, y = ~change_from_year_start,
-                 type = 'scatter', mode = 'lines',
-                 line = list(color = '#336699', width = 3),
+                 x = ~Week, 
+                 y = ~change_from_year_start,
+                 type = 'scatter', 
+                 mode = 'lines',
+                 line = list(color = '#336699', width = 2),
                  name = as.character(current_year),
                  hoverinfo = "text",
-                 text = ~paste("Year:", Year, "<br>Week:", Week, "<br>YTD:", round(change_from_year_start, 1),"%"))
+                 text = ~paste(
+                   "Year:", Year,
+                   "<br>Week:", Week, 
+                   "<br>Change:", round(change_from_year_start, 1),"%"
+                 )
+  )
 }
 
-# Average trace
+# Add trace for the historical average
 p <- add_trace(p, 
                data = df_avg_historical,
-               x = ~Week, y = ~avg_change,
-               type = 'scatter', mode = 'lines',
+               x = ~Week, 
+               y = ~avg_change,
+               type = 'scatter', 
+               mode = 'lines',
                line = list(color = 'darkred', width = 2, dash = 'dot'),
-               name = "Avg YTD",
+               name = paste0("Average (", min(df_historical_plain$Year), "-", max(df_historical_plain$Year), ")"),
                hoverinfo = "text",
-               text = ~paste("Average", "<br>Week:", Week, "<br>YTD:", round(avg_change, 1),"%"))
+               text = ~paste(
+                 "Year: Average",
+                 "<br>Week:", Week, 
+                 "<br>Change:", round(avg_change, 1),"%"
+               )
+)
 
-# Layout
+# 7. Apply layout and configuration
 p <- p %>% layout(
+  #title = "NASDAQ Weekly Performance Since Start of Year",
   xaxis = list(
-    title = "Week (53 = Final Year End)",
-    range = c(0.5, 53.5),
+    title = "Week",
+    range = c(0.5, 53.5), # CHANGED: Extended to 53.5 to fit the end dot
     showgrid = FALSE,
-    tickvals = c(1, 10, 20, 30, 40, 50, 53),
-    ticktext = c("1", "10", "20", "30", "40", "50", "End")
+    tickmode = "array",
+    tickvals = c(1, 10, 20, 30, 40, 50, 53), # CHANGED: Added 53
+    ticktext = c("1", "10", "20", "30", "40", "50", "End") # CHANGED: Added "End" label
   ),
-  yaxis = list(title = "YTD % Change", showgrid = TRUE, gridcolor = "#e5e5e5"),
+  yaxis = list(
+    title = "% Change",
+    #tickformat = ".0%", 
+    showgrid = TRUE,
+    gridcolor = "#e5e5e5"
+  ),
   showlegend = TRUE,
   legend = list(orientation = "h", y = 1.1),
+  hovermode = "closest",
   plot_bgcolor = "white"
-) %>% config(displayModeBar = FALSE)
+) %>%
+  config(
+    displayModeBar = FALSE 
+  )
+# REMOVED: The highlight() pipe was causing the performance issues.
 
+# Display the final plot
 p
+
 ```
