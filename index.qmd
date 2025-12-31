@@ -1,8 +1,14 @@
+
+::: {style="font-size: 14pt;font-weight: bold;margin-bottom: 10px; margin-top: 20px"}
+NASDAQ Weekly % Change Relative to Start of Year
+:::
+
+
+```{r}
 #| echo: false
 #| warning: false
 #| message: false
 
-```{r}
 # Load libraries
 library(quantmod)
 library(dplyr)
@@ -114,14 +120,14 @@ p <- add_trace(p,
                type = 'scatter', 
                mode = 'lines',
                line = list(color = 'darkred', width = 2, dash = 'dot'),
-               name = "Avg Return",
+               name = "Average 2018-2024",
                hoverinfo = "text",
                text = ~paste("Average", "<br>Week:", Week, "<br>Change:", round(avg_change, 1),"%"))
 
 # Layout
 p <- p %>% layout(
   xaxis = list(
-    title = "Week (53 = Year End)",
+    title = "Week",
     range = c(0.5, 53.5),
     showgrid = FALSE,
     tickvals = c(1, 10, 20, 30, 40, 50, 53),
