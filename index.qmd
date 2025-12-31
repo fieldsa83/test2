@@ -18,26 +18,40 @@ library(plotly)
 current_year <- 2025
 
 # 1. Get Daily Data
+# Note: Ideally, fetch a few days from 2007 to get the perfect baseline for 2008.
 df_hist_xts <- getSymbols("^IXIC", 
                           from = "2008-01-01", 
                           to = "2025-12-31",
                           src = "yahoo", 
                           auto.assign = FALSE)
 
-# --- STEP A: Calculate the "True" Start Price for each Year ---
-# We need the close of the FIRST trading day to calculate accurate YTD
-year_start_endpoints <- endpoints(df_hist_xts, on = "years")
-# The 'endpoints' function returns the LAST index of the period. 
-# To get the FIRST index of the year, we take the previous year's end + 1.
-# (We handle the first year manually or just use a grouping trick)
+# --- STEP A: Calculate the Standard YTD Baseline (Previous Year Close) ---
+# Official YTD is calculated relative to the CLOSE of the LAST trading day of the PREVIOUS year.
 
-df_daily <- data.frame(Date = index(df_hist_xts), coredata(df_hist_xts)) %>%
-  mutate(Year = as.numeric(format(Date, "%Y")))
+# 1. Get the closing price of the last day of every year
+yearly_ends <- endpoints(df_hist_xts, on = "years")
+df_yearly_closes <- df_hist_xts[yearly_ends, ]
 
-# Group by Year and take the first available Close price
-df_start_prices <- df_daily %>%
-  group_by(Year) %>%
-  summarise(Start_Price = first(`IXIC.Adjusted`))
+# 2. Create a reference table for baselines
+df_baselines <- data.frame(
+  Date = index(df_yearly_closes), 
+  Close = coredata(df_yearly_closes)[, "IXIC.Adjusted"]
+) %>%
+  mutate(
+    # The baseline for Year X is the close of Year X-1. 
+    # So we add 1 to the Year column to map it to the NEXT year.
+    Year = as.numeric(format(Date, "%Y")) + 1,
+    Baseline_Price = IXIC.Adjusted
+  ) %>%
+  select(Year, Baseline_Price)
+
+# 3. Handle the edge case: The first year (2008) has no "2007" data in this set.
+# We default 2008's baseline to its first trading day open/close.
+first_year <- min(as.numeric(format(index(df_hist_xts), "%Y")))
+first_year_open <- as.numeric(first(df_hist_xts[, "IXIC.Adjusted"]))
+if(!(first_year %in% df_baselines$Year)) {
+  df_baselines <- rbind(df_baselines, data.frame(Year = first_year, Baseline_Price = first_year_open))
+}
 
 # --- STEP B: Natural Weeks (1 to 52) ---
 weekly_idx <- endpoints(df_hist_xts, on = "weeks")
@@ -45,38 +59,36 @@ df_weekly <- df_hist_xts[weekly_idx, ]
 df_weekly <- data.frame(Date = index(df_weekly), coredata(df_weekly)) %>%
   mutate(
     Year = as.numeric(format(Date, "%Y")),
-    Week = as.numeric(format(Date, "%V")) # ISO Week
+    Week = as.numeric(format(Date, "%V")) 
   ) %>%
-  # Filter for standard weeks only. 
-  # We exclude "Week 53" here because we will manually create the perfect one later.
-  # We also exclude the "Week 1" glitch where Dec 31 is labeled as Week 1.
+  # Filter out Week 53s and the "Week 1" ISO glitch (Dec 31 labeled as Week 1)
   filter(Week <= 52, !(format(Date, "%m") == "12" & Week == 1))
 
 # --- STEP C: The "Special" Week 53 (Year End) ---
+# This captures the exact final trading day of the year
 yearly_idx <- endpoints(df_hist_xts, on = "years")
 df_yearend <- df_hist_xts[yearly_idx, ]
 df_yearend <- data.frame(Date = index(df_yearend), coredata(df_yearend)) %>%
   mutate(
     Year = as.numeric(format(Date, "%Y")),
-    Week = 53 # Hard-code this as the final bucket
+    Week = 53 # Hard-code as the final bucket
   )
 
 # --- STEP D: Combine and Calculate ---
-# Combine the natural weeks with the special year-end week
 df_combined <- bind_rows(df_weekly, df_yearend) %>%
   arrange(Year, Week)
 
-# Join with the Start Prices and calculate % Change
-df_plot <- left_join(df_combined, df_start_prices, by = "Year") %>%
+# Join with the NEW Correct Baselines
+df_plot <- left_join(df_combined, df_baselines, by = "Year") %>%
   mutate(
-    change_from_year_start = ((`IXIC.Adjusted` / Start_Price) - 1) * 100
+    # Standard YTD Calculation: (Current Price / Previous Year Close) - 1
+    change_from_year_start = ((`IXIC.Adjusted` / Baseline_Price) - 1) * 100
   )
 
-# Split into historical and current
+# Split and Average
 df_hist_plain <- df_plot %>% filter(Year < current_year)
 df_curr_year  <- df_plot %>% filter(Year == current_year)
 
-# Calculate Average
 df_avg <- df_hist_plain %>%
   group_by(Week) %>%
   summarise(avg_change = mean(change_from_year_start, na.rm = TRUE))
