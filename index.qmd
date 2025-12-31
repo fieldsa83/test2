@@ -33,7 +33,7 @@ df_with_dates <- data.frame(Date = index(last_day_of_week),
   mutate(
     Year  = as.numeric(format(Date, "%Y")),
     Month = as.numeric(format(Date, "%m")),
-    Week  = as.numeric(format(Date, "%V"))
+    Week = as.numeric(format(Date, "%W")) + 1
   )
 
 # 4. Group by year and calculate the change using backticks
