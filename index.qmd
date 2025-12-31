@@ -130,8 +130,8 @@ p <- p %>% layout(
     title = "Week",
     range = c(0.5, 53.5),
     showgrid = FALSE,
-    tickvals = c(1, 10, 20, 30, 40, 50, 53),
-    ticktext = c("1", "10", "20", "30", "40", "50", "End")
+    tickvals = c(1, 10, 20, 30, 40, 50),
+    ticktext = c("1", "10", "20", "30", "40", "50")
   ),
   yaxis = list(title = "% Change", showgrid = TRUE, gridcolor = "#e5e5e5"),
   showlegend = TRUE,
