@@ -33,15 +33,24 @@ df_with_dates <- data.frame(Date = index(last_day_of_week),
   mutate(
     Year  = as.numeric(format(Date, "%Y")),
     Month = as.numeric(format(Date, "%m")),
-    Week = as.numeric(format(Date, "%W")) + 1
+    # FIX 1: "Day of Year" Logic
+    # This prevents the ISO "Week 1" glitch by basing the week on day count (0-365).
+    # It ensures weeks flow strictly 1 -> 53.
+    Week  = (as.numeric(format(Date, "%j")) - 1) %/% 7 + 1
   )
 
-# 4. Group by year and calculate the change using backticks
+# 4. Group by year, calculate change, and align the finish line
 df_hist <- df_with_dates %>%
   arrange(Year, Week) %>%
   group_by(Year) %>%
   mutate(
-    change_from_year_start = ((`IXIC.Adjusted` / first(`IXIC.Adjusted`)) - 1)*100
+    # FIX 2: The "True YTD" Enforcer
+    # We force the very last trading day of every year to be "Week 53".
+    # This aligns the final annual return of every year at the same x-axis point.
+    Week = ifelse(Date == max(Date), 53, Week),
+    
+    # Calculate performance relative to the first week of the year
+    change_from_year_start = ((`IXIC.Adjusted` / first(`IXIC.Adjusted`)) - 1) * 100
   ) %>%
   ungroup()
 
@@ -49,6 +58,8 @@ df_hist <- df_with_dates %>%
 df_historical_plain <- df_hist %>% filter(Year < current_year, Week <= 53)
 df_current_year <- df_hist %>% filter(Year == current_year)
 
+# Calculate the historical average
+# Because of Fix 2, the average at Week 53 is now the true Average Annual Return.
 df_avg_historical <- df_historical_plain %>%
   group_by(Week) %>%
   summarise(avg_change = mean(change_from_year_start, na.rm = TRUE))
