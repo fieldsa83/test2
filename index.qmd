@@ -1,17 +1,11 @@
-::: {style="font-size: 14pt;font-weight: bold;margin-bottom: 10px; margin-top: 20px"}
-NASDAQ Weekly % Change Relative to Start of Year
-:::
-
-```{r}
 #| echo: false
 #| warning: false
 #| message: false
 
-# Load the necessary libraries
+# Load libraries
 library(quantmod)
 library(dplyr)
 library(plotly)
-library(scales) 
 
 # Define current year
 current_year <- 2025
@@ -80,12 +74,12 @@ df_avg <- df_hist_plain %>%
   group_by(Week) %>%
   summarise(avg_change = mean(change_from_year_start, na.rm = TRUE))
 
-# --- 6. Create the plot ---
+# --- STEP E: Plotting ---
 p <- plot_ly()
 
-# Add traces for all historical years
+# Historical Years
 p <- add_trace(p, 
-               data = df_historical_plain, # Using the plain data frame now
+               data = df_hist_plain,
                x = ~Week, 
                y = ~change_from_year_start,
                type = 'scatter', 
@@ -94,82 +88,48 @@ p <- add_trace(p,
                line = list(color = 'grey', width = 1),
                opacity = 0.3,
                hoverinfo = "text",
-               text = ~paste(
-                 "Year:", Year, 
-                 "<br>Week:", Week, 
-                 "<br>Change:", round(change_from_year_start, 1),"%"
-               ),
-               showlegend = FALSE
-)
+               text = ~paste("Year:", Year, "<br>Week:", Week, "<br>Change:", round(change_from_year_start, 1),"%"),
+               showlegend = FALSE)
 
-# Add trace for the current year
-if(nrow(df_current_year) > 0) {
+# Current Year
+if(nrow(df_curr_year) > 0) {
   p <- add_trace(p, 
-                 data = df_current_year,
+                 data = df_curr_year,
                  x = ~Week, 
                  y = ~change_from_year_start,
                  type = 'scatter', 
                  mode = 'lines',
-                 line = list(color = '#336699', width = 2),
+                 line = list(color = '#336699', width = 3),
                  name = as.character(current_year),
                  hoverinfo = "text",
-                 text = ~paste(
-                   "Year:", Year,
-                   "<br>Week:", Week, 
-                   "<br>Change:", round(change_from_year_start, 1),"%"
-                 )
-  )
+                 text = ~paste("Year:", Year, "<br>Week:", Week, "<br>Change:", round(change_from_year_start, 1),"%"))
 }
 
-# Add trace for the historical average
+# Average Line
 p <- add_trace(p, 
-               data = df_avg_historical,
+               data = df_avg,
                x = ~Week, 
                y = ~avg_change,
                type = 'scatter', 
                mode = 'lines',
                line = list(color = 'darkred', width = 2, dash = 'dot'),
-               name = paste0("Average (", min(df_historical_plain$Year), "-", max(df_historical_plain$Year), ")"),
+               name = "Avg Return",
                hoverinfo = "text",
-               text = ~paste(
-                 "Year: Average",
-                 "<br>Week:", Week, 
-                 "<br>Change:", round(avg_change, 1),"%"
-               )
-)
+               text = ~paste("Average", "<br>Week:", Week, "<br>Change:", round(avg_change, 1),"%"))
 
-
-
-# 7. Apply layout and configuration
+# Layout
 p <- p %>% layout(
-  #title = "NASDAQ Weekly Performance Since Start of Year",
   xaxis = list(
-    title = "Week",
+    title = "Week (53 = Year End)",
     range = c(0.5, 53.5),
     showgrid = FALSE,
-    tickmode = "array",
-    tickvals = c(1, 10, 20, 30, 40, 50),
-    ticktext = c("1", "10", "20", "30", "40", "50")
+    tickvals = c(1, 10, 20, 30, 40, 50, 53),
+    ticktext = c("1", "10", "20", "30", "40", "50", "End")
   ),
-  yaxis = list(
-    title = "% Change",
-    #tickformat = ".0%", 
-    showgrid = TRUE,
-    gridcolor = "#e5e5e5"
-  ),
+  yaxis = list(title = "% Change", showgrid = TRUE, gridcolor = "#e5e5e5"),
   showlegend = TRUE,
   legend = list(orientation = "h", y = 1.1),
-  hovermode = "closest",
   plot_bgcolor = "white"
-) %>%
-  config(
-    displayModeBar = FALSE 
-  )
-# REMOVED: The highlight() pipe was causing the performance issues.
+) %>% config(displayModeBar = FALSE)
 
-# Display the final plot
 p
-
-
-
-```
