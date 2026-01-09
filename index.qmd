@@ -15,12 +15,12 @@ library(plotly)
 library(scales) 
 
 # Define the current year for dynamic filtering
-current_year <- 2025
+current_year <- 2026
 
 # 1. Get NASDAQ data starting from 2008
 df_hist_xts <- getSymbols("^IXIC", 
                           from = "2008-01-01", 
-                          to = "2025-12-31",
+                          to = "2026-12-31",
                           src = "yahoo", 
                           auto.assign = FALSE)
 
