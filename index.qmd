@@ -69,7 +69,7 @@ df_hist <- bind_rows(df_weekly, df_yearend) %>%
 
 # 5. Prepare the data for plotting
 df_historical_plain <- df_hist %>% filter(Year < current_year) 
-df_current_year <- df_hist %>% filter(Year == current_year)
+df_current_year <- df_hist %>% filter(Year == current_year & !is.na(change_from_year_start))
 
 df_avg_historical <- df_historical_plain %>%
   group_by(Week) %>%
