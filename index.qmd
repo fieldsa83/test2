@@ -2,7 +2,6 @@
 NASDAQ Weekly % Change Relative to Start of Year
 :::
 
-
 ```{r}
 #| echo: false
 #| warning: false
